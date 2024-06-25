@@ -1,0 +1,32 @@
+1. Install Jenkins Container
+	- Create a jenkins.yaml file
+	- Configure the ports, volumes
+2. Setup Jenkins Cloud
+	- Setup Different agents for Build (Nodejs), Test(Nodejs), Deploy(Docker)
+	- Create labels
+	- Configure no of instances required
+3. Test the above configurations whether they are working or not.
+
+4. Setup Users
+	- Admin Users (default created)
+	- Test Users (Only have access to test phase)
+	- Deploy Users (Only who have access to deploy phase)
+
+5. Check the users access control, whether they are working as expected or not.
+
+6. Create a pipeline:
+	- Make sure to notify every step into slack(channel: #jenkins)
+	- This pipeline only runs when there is a new commit.
+	- private repository should be used in the entire jenkins process.
+	- Setup environments for Build, Test, Deploy phases
+	- Checkout to git directory
+	- make sure to use shared libraries as same repository
+	- Build the modules (npm install)
+	- Test the modules (npm test) 
+	- Create a dockerfile inorder to package the application with required modules (package.json,package.lock.json,...)
+	- make sure to include .dockerignore and .gitignore files.
+	- Package the application and push to dockerhub repository
+	- Deploy this package to Dev Instance, Test Instance
+	- Test user can validate this step and approve the check, if the testing fail, then the current commit is reverted from the main branch.
+	- Deploy user will be responsible for deploying the application
+
