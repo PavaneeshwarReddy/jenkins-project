@@ -1,0 +1,2 @@
+# to avoid JenkinsData to be tracked into SCM
+JenkinsData

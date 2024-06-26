@@ -1,0 +1,52 @@
+pipeline {
+    agent any
+    environment {
+    }
+    triggers{
+        pollSCM('H/5 * * * *')
+    }
+    stages {
+        stage("Checkout to Git Repository") {
+            environment {
+
+            }
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/PavaneeshwarReddy/jenkins-project.git']]
+                ])
+            }
+        }
+        stage("Build") {
+            agent {
+                docker {
+                    image 'node:22-alpine3.19'
+                    reuseNode true
+                }
+            }
+            steps {
+                echo "This is Build stage"
+            }
+        }
+        stage("Test") {
+            steps {
+                echo "This is Test stage"
+            }
+        }
+        stage("Package") {
+            agent {
+                docker {
+                    image 'docker:27.0.1-cli'
+                    reuseNode true
+                }
+            }
+            steps {
+                echo "This is Package stage"
+            }
+        }
+        stage("deploy") {
+            steps {
+                echo "This is a Deploy statge"
+            }
+        }
+    }
+}

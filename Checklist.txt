@@ -1,10 +1,14 @@
 1. Install Jenkins Container
 	- Create a jenkins.yaml file
 	- Configure the ports, volumes
-2. Setup Jenkins Cloud
-	- Setup Different agents for Build (Nodejs), Test(Nodejs), Deploy(Docker)
-	- Create labels
-	- Configure no of instances required
+
+2. Create a jenkins file
+	- Checkout to Github file
+	- Build (Nodejs container)
+	- Test (Nodejs reusable container)
+	- Package (Docker Container)
+	- Deploy (Docker resusable container) 
+
 3. Test the above configurations whether they are working or not.
 
 4. Setup Users
