@@ -1,6 +1,4 @@
-1. Install Jenkins Container
-	- Create a jenkins.yaml file
-	- Configure the ports, volumes
+1. Install Jenkins On Linux Machine
 
 2. Create a jenkins file
 	- Checkout to Github file
