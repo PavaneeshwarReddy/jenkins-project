@@ -1,30 +1,22 @@
 
 
-
-void sendSlackMessage(String message, String type) {
-    slacksend(channel:env.SLACK_CHANNEL,text:message,color:env.COLOR_MAPPING[type], credentialsId:env.SLACK_CREDENTIALS_ID)
-}
-
 pipeline {
     agent any
-    triggers{
-        pollSCM('H/5 * * * *')
-    }
+
     environment {
-        SLACK_CREDENTIALS_ID = credentials("slack-credentials")
-        COLOR_MAPPING = [
-            SUCCESS: '#00FF00',
-            FAILURE: '#FF0000'
-        ]
         SLACK_CHANNEL = "#jenkins"
+        STAGE_ERROR_MESSAGE = ""
     }
+
     stages {
         stage("Checkout to Git Repository") {
             steps {
-                sendSlackMessage("id:${BUILD_ID} Build Started ${BUILD_NUMBER}",'SUCCESS')
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: 'https://github.com/PavaneeshwarReddy/jenkins-project.git']]
-                ])
+                script {
+                    sendSlackMessage("${BUILD_ID}: Build Started ${BUILD_NUMBER}", 'SUCCESS')
+                    checkout([$class: 'GitSCM', branches: [[name: '*/main']],
+                        userRemoteConfigs: [[url: 'https://github.com/PavaneeshwarReddy/jenkins-project.git']]
+                    ])
+                }
             }
         }
         stage("Build") {
@@ -32,28 +24,31 @@ pipeline {
                 docker {
                     image 'node:22-alpine3.19'
                     reuseNode true
+                    args '-u root'
                 }
             }
             steps {
                 script {
+                    sendSlackMessage("Build stage started for ${BUILD_NUMBER}",'SUCCESS')
                     echo 'npm --version'
                     try {
                         sh 'npm install'
                         dir('./dockerchecks') {
                             sh 'node nodetest.js'
                         }
-                    }
-                    catch(Exception e) {
+                    } catch(Exception e) {
                         currentBuild.result = 'FAILURE'
-                        env.STAGE_ERROR_MESSAGE = 'Test stage exited with this error : ${e.message}' 
+                        env.STAGE_ERROR_MESSAGE = "Build stage failed: ${e.message}"
+                        sh 'exit 1'
                     }
-                    echo 'Build Stage successfull'
-                    sendSlackMessage("Build stage successfull, proceeding to next stage",'SUCCESS')
+                    echo 'Build Stage successful'
+                    sendSlackMessage("Build stage successful, proceeding to next stage", 'SUCCESS')
                 }
             }
         }
         stage("Test") {
             steps {
+                sh 'npm install --save-dev jest'
                 sh 'npm test'
             }
         }
@@ -69,23 +64,44 @@ pipeline {
                 echo "docker --version"
             }
         }
-        stage("deploy") {
+        stage("Deploy") {
             steps {
                 echo "This is a Deploy stage"
             }
         }
     }
+
     post {
         always {
             echo 'Pipeline completed.'
-            sendSlackMessage("Pipeline completeld with no failues",'SUCCESS')
+            sendSlackMessage("Pipeline completed",currentBuild.result)
         }
         success {
             echo 'Pipeline completed successfully!'
         }
         failure {
             echo 'Pipeline failed.'
-            sendSlackMessage(env.STAGE_ERROR_MESSAGE,'FAILURE')
+            sendSlackMessage(env.STAGE_ERROR_MESSAGE ?: "Pipeline failed without specific error message",'FAILURE')
         }
     }
+}
+
+//function to return the color code
+String colorCode(String type) {
+    def COLOR_MAPPING = [
+        SUCCESS: '#00FF00',
+        FAILURE: '#FF0000',
+        ABORTED: '#FFFF00',
+        UNSTABLE: '#FFA500'
+    ]
+    return COLOR_MAPPING[type]
+}
+
+// Function to send Slack message
+void sendSlackMessage(String message, String type) {
+    slackSend(
+        color: colorCode(type),
+        message: message,
+        channel: env.SLACK_CHANNEL,
+    )
 }
