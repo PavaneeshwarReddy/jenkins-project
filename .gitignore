@@ -1,2 +1,5 @@
 # to avoid JenkinsData to be tracked into SCM
 JenkinsData
+
+# to avoid node modules into git repo
+node_modules
