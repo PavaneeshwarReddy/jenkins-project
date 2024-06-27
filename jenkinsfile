@@ -1,11 +1,27 @@
+
+
+
+void sendSlackMessage(String message, String type) {
+    slacksend(channel:env.SLACK_CHANNEL,text:message,color:env.COLOR_MAPPING[type], credentialsId:env.SLACK_CREDENTIALS_ID)
+}
+
 pipeline {
     agent any
     triggers{
         pollSCM('H/5 * * * *')
     }
+    environment {
+        SLACK_CREDENTIALS_ID = credentials("slack-credentials")
+        COLOR_MAPPING = [
+            SUCCESS: '#00FF00',
+            FAILURE: '#FF0000'
+        ]
+        SLACK_CHANNEL = "#jenkins"
+    }
     stages {
         stage("Checkout to Git Repository") {
             steps {
+                sendSlackMessage("id:${BUILD_ID} Build Started ${BUILD_NUMBER}",'SUCCESS')
                 checkout([$class: 'GitSCM', branches: [[name: '*/main']],
                     userRemoteConfigs: [[url: 'https://github.com/PavaneeshwarReddy/jenkins-project.git']]
                 ])
@@ -19,13 +35,26 @@ pipeline {
                 }
             }
             steps {
-                echo "This is Build stage"
-                echo "npm --version"
+                script {
+                    echo 'npm --version'
+                    try {
+                        sh 'npm install'
+                        dir('./dockerchecks') {
+                            sh 'node nodetest.js'
+                        }
+                    }
+                    catch(Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        env.STAGE_ERROR_MESSAGE = 'Test stage exited with this error : ${e.message}' 
+                    }
+                    echo 'Build Stage successfull'
+                    sendSlackMessage("Build stage successfull, proceeding to next stage",'SUCCESS')
+                }
             }
         }
         stage("Test") {
             steps {
-                echo "This is Test stage"
+                sh 'npm test'
             }
         }
         stage("Package") {
@@ -49,12 +78,14 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed.'
+            sendSlackMessage("Pipeline completeld with no failues",'SUCCESS')
         }
         success {
             echo 'Pipeline completed successfully!'
         }
         failure {
             echo 'Pipeline failed.'
+            sendSlackMessage(env.STAGE_ERROR_MESSAGE,'FAILURE')
         }
     }
 }
