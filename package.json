@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "npm test",
     "start": "nodemon server"
   },
   "repository": {
@@ -19,6 +19,6 @@
   "homepage": "https://github.com/PavaneeshwarReddy/jenkins-project#readme",
   "dependencies": {
     "express": "^4.19.2",
-     "jest": "^29.7.0"
+    "jest": "^29.7.0"
   }
 }
