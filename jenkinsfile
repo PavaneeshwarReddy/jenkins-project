@@ -48,7 +48,23 @@ pipeline {
         }
         stage("Test") {
             steps {
-                sh 'npm test'
+                echo "Test stage started for ${BUILD_NUMBER}"
+                script {
+                    sendSlackMessage("Test stage started for ${BUILD_NUMBER}",'SUCCESS')
+                    try {
+                        sendSlackMessage("Test stage started for ${BUILD_NUMBER}",'SUCCESS')
+                        sh 'npm test'
+                        junit './reports/**/*.xml'
+                        sendSlackFile("These are the unit test case results","./reports/**/*.xml",'SUCCESS')
+                    }
+                    catch(Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        env.STAGE_ERROR_MESSAGE = "Test stage build failed ${e.message}"
+                        sh 'exit 1'
+                    }
+                    echo "Test stage successfull"
+                    sendSlackMessage("Test stage successfull, proceeding to next stage", 'SUCCESS')
+                }
             }
         }
         stage("Package") {
@@ -71,10 +87,6 @@ pipeline {
     }
 
     post {
-        always {
-            echo 'Pipeline completed.'
-            sendSlackMessage("Pipeline completed",currentBuild.result)
-        }
         success {
             echo 'Pipeline completed successfully!'
         }
@@ -82,10 +94,15 @@ pipeline {
             echo 'Pipeline failed.'
             sendSlackMessage(env.STAGE_ERROR_MESSAGE ?: "Pipeline failed without specific error message",'FAILURE')
         }
+        always {
+            echo 'Pipeline completed.'
+            sendSlackMessage("Pipeline completed",currentBuild.result)
+            cleanWs() // this cleans entire workspace
+        }
     }
 }
 
-//function to return the color code
+// Function to return the color code
 String colorCode(String type) {
     def COLOR_MAPPING = [
         SUCCESS: '#00FF00',
@@ -102,5 +119,15 @@ void sendSlackMessage(String message, String type) {
         color: colorCode(type),
         message: message,
         channel: env.SLACK_CHANNEL,
+    )
+}
+
+// Function to upload file to channel
+void sendSlackFile(String message,String filePath,String type) {
+    slackUploadFile(
+        channel:env.SLACK_CHANNEL,
+        color:colorCode(type),
+        intitalComment:message,
+        filePath:filePath
     )
 }

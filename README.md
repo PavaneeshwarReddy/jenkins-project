@@ -35,7 +35,10 @@ slack notification
 - Create jenkins cli app in slack apps directory
 - Go to manage jenkins > system settings > slack
 - Follow steps shown in slack documentation
-- Create multiple channels for build, test, ,package, deploy
+- Create color coders for different status
 
+### jest-junit
+- This is used to capture the results of npm test
+- Install this module using npm
 
 
