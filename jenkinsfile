@@ -1,5 +1,3 @@
-
-
 pipeline {
     agent any
 
@@ -10,12 +8,13 @@ pipeline {
         VERSION = "0.0"
         IMAGE = "${IMAGE_NAME}:${VERSION}"
         TEST_REPORTS_PATH = "**/reports/junit/*.xml"
-        DOCKER_REGISTRY = 'index.docker.io/v1/'
+        DOCKER_REGISTRY = 'https://index.docker.io/v1/'
         DOCKER_CREDENTIALS_ID = credentials("docker-credentials")
+        DOCKER_USERNAME = 'pavaneeshwar7077'
     }
 
     stages {
-        stage("Checkout to Git Repository") {
+        stage("Checkout") {
             steps {
                 script {
                     sendSlackMessage("${BUILD_ID}: Build Started ${BUILD_NUMBER}", 'SUCCESS')
@@ -25,18 +24,12 @@ pipeline {
                 }
             }
         }
+
         stage("Build") {
-            agent {
-                docker {
-                    image 'node:22-alpine3.19'
-                    reuseNode true
-                    args '-u root'
-                }
-            }
             steps {
                 script {
-                    sendSlackMessage("Build stage started for ${BUILD_NUMBER}",'SUCCESS')
-                    echo 'npm --version'
+                    sendSlackMessage("Build stage started for ${BUILD_NUMBER}", 'SUCCESS')
+                    echo 'Running npm install...'
                     try {
                         sh 'npm install'
                         dir('./dockerchecks') {
@@ -48,65 +41,53 @@ pipeline {
                         sh 'exit 1'
                     }
                     echo 'Build Stage successful'
-                    sendSlackMessage("Build stage successful, proceeding to next stage", 'SUCCESS')
+                    sendSlackMessage("Build stage successful, proceeding to Test stage", 'SUCCESS')
                 }
             }
         }
+
         stage("Test") {
             steps {
-                echo "Test stage started for ${BUILD_NUMBER}"
                 script {
-                    sendSlackMessage("Test stage started for ${BUILD_NUMBER}",'SUCCESS')
+                    sendSlackMessage("Test stage started for ${BUILD_NUMBER}", 'SUCCESS')
                     try {
-                        sendSlackMessage("Test stage started for ${BUILD_NUMBER}",'SUCCESS')
                         sh 'npm test'
                         sh 'pwd'
-                        sh "ls ${TEST_REPORTS_PATH}"
                         junit "${TEST_REPORTS_PATH}"
-                    }
-                    catch(Exception e) {
+                    } catch(Exception e) {
                         currentBuild.result = 'FAILURE'
-                        env.STAGE_ERROR_MESSAGE = "Test stage build failed ${e.message}"
+                        env.STAGE_ERROR_MESSAGE = "Test stage build failed: ${e.message}"
                         sh 'exit 1'
                     }
-                    echo "Test stage successfull"
-                    sendSlackMessage("Test stage successfull, proceeding to next stage", 'SUCCESS')
+                    echo "Test stage successful"
+                    sendSlackMessage("Test stage successful, proceeding to Package stage", 'SUCCESS')
                 }
             }
         }
+
         stage("Package") {
-            agent {
-                docker {
-                    image 'docker:27.0.1-cli'
-                    reuseNode true
-                }
-            }
             steps {
-                echo "This is Package stage"
-                echo "docker --version"
                 script {
-                    sendSlackMessage("Package stage started for ${BUILD_NUMBER}",'SUCCESS')
+                    sendSlackMessage("Package stage started for ${BUILD_NUMBER}", 'SUCCESS')
                     try {
-                        docker.withRegistry(env.DOCKER_REGISTRY, env.DOCKER_CREDENTIALS_ID) {
-                            def image = docker.build(env.IMAGE)
-                            image.inside {
-                                sh "node ./dockerchecks/nodetest.js"
-                            }
-                            image.push()
-                        }
-                    }
-                    catch(Exception e) {
+                        sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_CREDENTIALS_ID}'
+                        sh "docker build -t ${DOCKER_USERNAME}/${IMAGE} ."
+                        sh "docker push ${DOCKER_USERNAME}/${IMAGE}"
+                    } catch(Exception e) {
                         currentBuild.result = 'FAILURE'
-                        env.STAGE_ERROR_MESSAGE = "Test stage build failed ${e.message}"
+                        env.STAGE_ERROR_MESSAGE = "Package stage build failed: ${e.message}"
                         sh 'exit 1'
                     }
-                    sendSlackMessage("Test stage successfull, proceeding to next stage", 'SUCCESS')
+                    echo "Package stage successful"
+                    sendSlackMessage("Package stage successful, proceeding to Deploy stage", 'SUCCESS')
                 }
             }
         }
+
         stage("Deploy") {
             steps {
-                echo "This is a Deploy stage"
+                echo "Deploy stage will be implemented here"
+                // Add deployment steps here
             }
         }
     }
@@ -114,14 +95,15 @@ pipeline {
     post {
         success {
             echo 'Pipeline completed successfully!'
+            sendSlackMessage("Pipeline completed successfully", 'SUCCESS')
         }
         failure {
             echo 'Pipeline failed.'
-            sendSlackMessage(env.STAGE_ERROR_MESSAGE ?: "Pipeline failed without specific error message",'FAILURE')
+            sendSlackMessage(env.STAGE_ERROR_MESSAGE ?: "Pipeline failed without specific error message", 'FAILURE')
         }
         always {
             echo 'Pipeline completed.'
-            sendSlackMessage("Pipeline completed",currentBuild.result)
+            sendSlackMessage("Pipeline completed", currentBuild.result)
             //cleanWs() // this cleans entire workspace
         }
     }
