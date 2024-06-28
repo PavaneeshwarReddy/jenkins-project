@@ -3,3 +3,6 @@ JenkinsData
 
 # to avoid node modules into git repo
 node_modules
+
+# to avoid reports 
+reports

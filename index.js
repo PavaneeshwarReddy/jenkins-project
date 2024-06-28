@@ -52,5 +52,6 @@ class GroceryItems {
     }
 }
 
+console.log("Nodejs is running as docker container, Project is completed")
 
 module.exports = {Users,GroceryItems}

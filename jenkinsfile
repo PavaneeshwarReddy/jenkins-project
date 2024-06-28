@@ -6,6 +6,12 @@ pipeline {
     environment {
         SLACK_CHANNEL = "#jenkins"
         STAGE_ERROR_MESSAGE = ""
+        IMAGE_NAME = "myapp-jenkins"
+        VERSION = "0.0"
+        IMAGE = "${IMAGE_NAME}:${VERSION}"
+        TEST_REPORTS_PATH = "**/reports/junit/*.xml"
+        DOCKER_REGISTRY = 'index.docker.io/v1/'
+        DOCKER_CREDENTIALS_ID = credentials("docker-credentials")
     }
 
     stages {
@@ -54,8 +60,9 @@ pipeline {
                     try {
                         sendSlackMessage("Test stage started for ${BUILD_NUMBER}",'SUCCESS')
                         sh 'npm test'
-                        junit './reports/**/*.xml'
-                        sendSlackFile("These are the unit test case results","./reports/**/*.xml",'SUCCESS')
+                        sh 'pwd'
+                        sh "ls ${TEST_REPORTS_PATH}"
+                        junit "${TEST_REPORTS_PATH}"
                     }
                     catch(Exception e) {
                         currentBuild.result = 'FAILURE'
@@ -77,6 +84,24 @@ pipeline {
             steps {
                 echo "This is Package stage"
                 echo "docker --version"
+                script {
+                    sendSlackMessage("Package stage started for ${BUILD_NUMBER}",'SUCCESS')
+                    try {
+                        docker.withRegistry(env.DOCKER_REGISTRY, env.DOCKER_CREDENTIALS_ID) {
+                            def image = docker.build(env.IMAGE)
+                            image.inside {
+                                sh "node ./dockerchecks/nodetest.js"
+                            }
+                            image.push()
+                        }
+                    }
+                    catch(Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        env.STAGE_ERROR_MESSAGE = "Test stage build failed ${e.message}"
+                        sh 'exit 1'
+                    }
+                    sendSlackMessage("Test stage successfull, proceeding to next stage", 'SUCCESS')
+                }
             }
         }
         stage("Deploy") {
@@ -97,7 +122,7 @@ pipeline {
         always {
             echo 'Pipeline completed.'
             sendSlackMessage("Pipeline completed",currentBuild.result)
-            cleanWs() // this cleans entire workspace
+            //cleanWs() // this cleans entire workspace
         }
     }
 }
@@ -119,15 +144,5 @@ void sendSlackMessage(String message, String type) {
         color: colorCode(type),
         message: message,
         channel: env.SLACK_CHANNEL,
-    )
-}
-
-// Function to upload file to channel
-void sendSlackFile(String message,String filePath,String type) {
-    slackUploadFile(
-        channel:env.SLACK_CHANNEL,
-        color:colorCode(type),
-        intitalComment:message,
-        filePath:filePath
     )
 }

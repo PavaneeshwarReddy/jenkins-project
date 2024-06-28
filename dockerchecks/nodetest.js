@@ -1,1 +1,1 @@
-console.log("Node is installed succcessfully and working fine")
+console.log("Node is installed succcessfully and working fine / Container is working fine with node installed in it")

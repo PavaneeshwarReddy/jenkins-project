@@ -1,0 +1,20 @@
+# removing docker checks
+dockerchecks
+
+# removing node modules
+node_modules
+
+# removing test related files
+__tests__
+dockerchecks
+jest.config.js
+data.js
+reports
+
+
+# removing jenkins files
+jenkinsfile
+
+# removing readme files
+README.md 
+Checklist.txt
